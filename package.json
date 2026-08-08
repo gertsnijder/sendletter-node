@@ -5,6 +5,13 @@
   "keywords": ["letter", "post", "mail", "printing", "registered mail", "netherlands", "europe"],
   "homepage": "https://sendletter.eu",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gertsnijder/sendletter-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gertsnijder/sendletter-node/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

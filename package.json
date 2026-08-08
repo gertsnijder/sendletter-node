@@ -1,0 +1,26 @@
+{
+  "name": "sendletter",
+  "version": "1.0.0",
+  "description": "Send real, physical letters by post from Node. Print, frank and deliver across Europe, including registered mail with proof of posting.",
+  "keywords": ["letter", "post", "mail", "printing", "registered mail", "netherlands", "europe"],
+  "homepage": "https://sendletter.eu",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

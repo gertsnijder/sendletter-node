@@ -1,0 +1,38 @@
+# Publishes to npm with provenance, so anyone installing this can verify the
+# tarball was built from this source and not from somebody's laptop.
+#
+# No NPM_TOKEN. This uses npm's trusted publishing: the package is configured to
+# trust this repository and this workflow, and the identity comes from the OIDC
+# token GitHub mints for the run. A stored token would be a long-lived
+# publishing credential in repository secrets, readable by anyone who can add a
+# workflow; this way there is nothing to steal.
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm install
+
+      - run: npm run typecheck
+
+      - run: npm run build
+
+      - run: npm publish --provenance --access public

@@ -26,8 +26,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: '22'
+
+      # Two things trusted publishing needs and the defaults do not give.
+      #
+      # No registry-url on setup-node: it writes an .npmrc containing
+      # _authToken=${NODE_AUTH_TOKEN}, and with no token set that becomes a
+      # literal placeholder which npm sends instead of using the OIDC
+      # identity. The publish then answers 404, which reads like a missing
+      # package rather than a refused credential.
+      #
+      # And a current npm: OIDC publishing landed in 11.5.1, while the npm
+      # shipped with Node 22 is older than that.
+      - run: npm install -g npm@latest
 
       - run: npm install
 

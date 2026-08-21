@@ -76,6 +76,24 @@ for await (const letter of sendletter.all({ mode: 'live' })) {
 }
 ```
 
+## Invoices and credit notes
+
+Every paid live letter receives its invoice number at payment time. Test
+letters never consume the statutory series. A full refund keeps that invoice
+and adds a separately numbered negative credit note.
+
+```ts
+const page = await sendletter.listInvoices()
+await writeFile('invoice.pdf', await sendletter.downloadInvoice(page.data[0].id))
+
+if (page.data[0].creditNote) {
+  await writeFile(
+    'credit-note.pdf',
+    await sendletter.downloadCreditNote(page.data[0].creditNote.id),
+  )
+}
+```
+
 ## Checking before you spend
 
 ```ts

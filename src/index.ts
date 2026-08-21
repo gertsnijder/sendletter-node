@@ -14,7 +14,7 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
-export const VERSION = '1.0.0'
+export const VERSION = '1.1.0'
 
 const DEFAULT_BASE_URL = 'https://onlinebriefversturen.nl'
 
@@ -60,6 +60,8 @@ export interface Letter {
   totalCents: number
   currency: string
   trackingCode: string | null
+  /** The organisation that paid, or null when it came out of your own wallet. */
+  billedToOrganizationId: string | null
   createdAt: string
   postedAt: string | null
   timeline?: TimelineEntry[]
@@ -80,6 +82,15 @@ export interface SendLetterInput {
   colour?: boolean
   duplex?: boolean
   /**
+   * Bill this letter to an organisation instead of the key's own wallet.
+   *
+   * Leave it out for a personal letter, which is what every call without it
+   * has always meant. Naming an organisation this account may not spend is
+   * refused with 403 rather than charged to you: by the time a wrong charge
+   * turned up on a statement the letter would have been delivered.
+   */
+  organizationId?: string
+  /**
    * Repeat a call with the same key and the original letter comes back
    * instead of a second envelope. Send one on anything that can be retried,
    * which on an automation platform is everything.
@@ -94,6 +105,30 @@ export interface ListLettersOptions {
   before?: string
   /** Leave test letters out of a production list. */
   mode?: LetterMode
+}
+
+export interface CreditNote {
+  id: string
+  issuedAt: string
+  priceCents: number
+  vatCents: number
+  totalCents: number
+  currency: string
+  pdfUrl: string
+}
+
+export interface Invoice {
+  id: string
+  letterId: string
+  issuedAt: string
+  status: 'issued' | 'credited'
+  priceCents: number
+  vatCents: number
+  totalCents: number
+  currency: string
+  reverseCharge: boolean
+  pdfUrl: string
+  creditNote: CreditNote | null
 }
 
 export interface AddressCheck {
@@ -233,6 +268,37 @@ export class SendLetter {
     return new Uint8Array(await res.arrayBuffer())
   }
 
+  async listInvoices(
+    options: { limit?: number; before?: string } = {},
+  ): Promise<{ data: Invoice[]; nextCursor: string | null }> {
+    const query = new URLSearchParams()
+    if (options.limit) query.set('limit', String(options.limit))
+    if (options.before) query.set('before', options.before)
+    const suffix = query.toString() ? `?${query}` : ''
+    return this.request('GET', `/api/v1/invoices${suffix}`)
+  }
+
+  /** Walks every real invoice; test letters never appear in this collection. */
+  async *allInvoices(options: { limit?: number } = {}): AsyncGenerator<Invoice> {
+    let before: string | undefined
+    for (;;) {
+      const page = await this.listInvoices({ ...options, before })
+      for (const invoice of page.data) yield invoice
+      if (!page.nextCursor) return
+      before = page.nextCursor
+    }
+  }
+
+  async downloadInvoice(invoiceId: string): Promise<Uint8Array> {
+    return this.downloadFinancialDocument(`/api/v1/invoices/${encodeURIComponent(invoiceId)}/pdf`)
+  }
+
+  async downloadCreditNote(creditNoteId: string): Promise<Uint8Array> {
+    return this.downloadFinancialDocument(
+      `/api/v1/credit-notes/${encodeURIComponent(creditNoteId)}/pdf`,
+    )
+  }
+
   /**
    * Checks an address without sending to it.
    *
@@ -259,6 +325,12 @@ export class SendLetter {
     const res = await this.raw(method, path, body)
     if (!res.ok) throw await this.toError(res)
     return (await res.json()) as T
+  }
+
+  private async downloadFinancialDocument(path: string): Promise<Uint8Array> {
+    const res = await this.raw('GET', path)
+    if (!res.ok) throw await this.toError(res)
+    return new Uint8Array(await res.arrayBuffer())
   }
 
   private async raw(method: string, path: string, body?: unknown): Promise<Response> {
